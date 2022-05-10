@@ -8,8 +8,8 @@ from logs import getLogger, getMatchLogger
 from status import ClientStatus, MatchStatus
 from utils import clock
 
-MOVE_TIME_LIMIT = 10
-RETRY_TIME = 5
+MOVE_TIME_LIMIT = 5
+RETRY_TIME = 3
 
 log = getLogger('match')
 
@@ -75,11 +75,11 @@ async def runMatch(Game: callable, match: Match, tempo: float):
                     'state': matchState
                 }
                 
-                response, responseTime = await fetch(current.client, request, timeout=MOVE_TIME_LIMIT*1.1)
+                response, responseTime = await fetch(current.client, request, timeout=MOVE_TIME_LIMIT*1.2)
                 current.client.status = ClientStatus.READY
 
-                if 'message' in response:
-                    chat.addMessage(Message(name=str(current), message=response['message']))
+                if 'message' in response :
+                    chat.addMessage(Message(name=str(current), message=str(response['message'])))
             
                 if response['response'] == 'move':
                     move = response['move']
@@ -88,16 +88,19 @@ async def runMatch(Game: callable, match: Match, tempo: float):
                         matchState = next(matchState, move)
                         match.state = matchState
                         match.moves += 1
-                        if responseTime > MOVE_TIME_LIMIT:
+                        if responseTime > MOVE_TIME_LIMIT*1.1:
                             kill(current, '{} take too long to respond: {}s'.format(current, responseTime), move)
                     except game.BadMove as e:
                         kill(current, 'This is a Bad Move. ' + str(e), move)
                 
-                if response['response'] == 'giveup':
+                elif response['response'] == 'giveup':
                     msg = '{} Give Up'.format(current)
                     log.info(msg)
                     chat.addMessage(Message(name="Admin", message=msg))
                     raise game.GameWin(other.index, matchState)
+
+                else:
+                    kill(current, 'response[\'response\'] can\'t be {}'.format(response['response']), None)
             except FetchError as e:
                 kill(current, '{} unavailable ({}). Wait for {} seconds'.format(current, e, RETRY_TIME), None)
                 await asyncio.sleep(RETRY_TIME)

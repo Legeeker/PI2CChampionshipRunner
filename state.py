@@ -5,6 +5,7 @@ from logs import getLogger, stateFilename, date
 from status import ClientStatus, MatchStatus
 import jsonpickle
 from datetime import datetime
+import random
 
 log = getLogger('state')
 
@@ -73,7 +74,7 @@ class Match:
         if self.task is not None:
             task = self.task
             self.task = None
-            task.cancel('User Cancelled')
+            task.cancel()
             try:
                 await task
             except asyncio.CancelledError as e:
@@ -96,6 +97,7 @@ class Match:
         self.chat = None
         self.badMoves = [0, 0]
         self.points = [0, 0]
+        log.info('Match {} Reset'.format(self))
 
 class ClientNotFoundError(Exception):
     pass
@@ -112,11 +114,14 @@ class _State:
                 return client
         raise ClientNotFoundError()
 
-    def removeClient(self, name):
+    async def removeClient(self, name):
         for match in list(self.matches):
             if name in match.clients:
+                if match.status != MatchStatus.PENDING:
+                    await match.reset()
                 self.matches.remove(match)
         self.clients.pop(name)
+        log.info('Client {} Removed'.format(name))
 
     def addClient(self, client: Client):
         try:
@@ -128,8 +133,9 @@ class _State:
             if client.name in self.clients:
                 raise StateError('Name \'{}\' Already Used'.format(client.name))
             for other in self.clients.values():
-                self.matches.append(Match(client, other))
-                self.matches.append(Match(other, client))
+                players = [other, client]
+                random.shuffle(players)
+                self.matches.append(Match(*players))
         self.clients[client.name] = client
         
         
