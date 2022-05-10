@@ -13,6 +13,8 @@ directions = [
     ( 1, -1),
     (-1, -1)
 ]
+class BadMove(Exception):
+	pass
 
 def add(p1, p2):
     l1, c1 = p1
@@ -53,10 +55,10 @@ def willBeTaken(state, move):
     otherIndex = (playerIndex+1)%2
 
     if not (0 <= move < 64):
-        raise game.BadMove('Your must be between 0 inclusive and 64 exclusive')
+        raise BadMove('Your must be between 0 inclusive and 64 exclusive')
 
     if move in state['board'][0] + state['board'][1]:
-        raise game.BadMove('This case is not free')
+        raise BadMove('This case is not free')
 
     board = []
     for i in range(2):
@@ -77,7 +79,7 @@ def willBeTaken(state, move):
                 break
 
     if len(cases) == 0:
-        raise game.BadMove('Your move must take opponent\'s pieces')
+        raise BadMove('Your move must take opponent\'s pieces')
     
     return [index(case) for case in cases]
 
@@ -87,7 +89,8 @@ def possibleMoves(state):
         try:
             willBeTaken(state, move)
             res.append(move)
-        except game.BadMove:
+            print(res)
+        except BadMove:
             pass
     return res
 
@@ -116,7 +119,7 @@ def Othello(players):
         otherIndex = (playerIndex+1)%2
 
         if len(possibleMoves(state)) > 0 and move is None:
-            raise game.BadMove('You cannot pass your turn if there are possible moves')
+            raise BadMove('You cannot pass your turn if there are possible moves')
 
         if move is not None:
             cases = willBeTaken(state, move)
